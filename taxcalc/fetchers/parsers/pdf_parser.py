@@ -312,37 +312,56 @@ class RevenueProcedureParser(PDFParser):
             text: Revenue Procedure text
 
         Returns:
-            Dictionary with phaseout thresholds by filing status
+            Dictionary with phaseout start thresholds by filing status
         """
-        # Look for phaseout section
-        section = self.find_section(
-            text,
-            ['phaseout', 'threshold']
+        # Find AMT section - the phaseout info is in the same section
+        pattern = re.compile(
+            r'\.11\s+Exemption Amounts for Alternative Minimum Tax\..*?(?=\n\.[\d]+\s+[A-Z]|\Z)',
+            re.DOTALL | re.IGNORECASE
         )
 
-        if not section:
-            # Try to find it in AMT section
-            section = self.find_section(text, ['Alternative Minimum Tax', 'AMT'])
-
-        if not section:
+        match = pattern.search(text)
+        if not match:
+            logger.warning("Could not find AMT section for phaseout extraction")
             return {}
 
-        # Look for "phaseout" or "threshold" lines
-        result = {}
-        lines = section.split('\n')
+        section = match.group(0)
 
-        for i, line in enumerate(lines):
-            if 'phaseout' in line.lower() or 'threshold' in line.lower():
-                # Check next few lines for filing statuses
-                for j in range(i, min(i + 10, len(lines))):
-                    check_line = lines[j]
-                    for pattern, status_key in self.STATUS_MAP.items():
-                        if re.search(pattern, check_line, re.IGNORECASE):
-                            amounts = self.extract_dollar_amounts(check_line)
-                            if amounts:
-                                # First amount is usually the threshold
-                                key = f"{status_key}_phaseout"
-                                result[key] = amounts[0]
+        # Find the phaseout subsection
+        # It says "amounts used under § 55(d)(2) to determine the phaseout"
+        phaseout_match = re.search(
+            r'amounts used under.*?55\(d\)\(2\).*?phaseout.*?(?=\.[\d]+\s+[A-Z]|\Z)',
+            section,
+            re.DOTALL | re.IGNORECASE
+        )
+
+        if not phaseout_match:
+            logger.debug("Could not find phaseout subsection in AMT section")
+            return {}
+
+        phaseout_section = phaseout_match.group(0)
+        logger.debug(f"Found phaseout section ({len(phaseout_section)} chars)")
+
+        result = {}
+        lines = phaseout_section.split('\n')
+
+        for line in lines:
+            # Skip header lines
+            if 'Threshold' in line or 'Amount' in line:
+                continue
+
+            # Try each pattern - stop at first match
+            for pattern, status_key in self.STATUS_MAP.items():
+                if status_key in result:
+                    continue
+
+                if re.search(pattern, line, re.IGNORECASE):
+                    amounts = self.extract_dollar_amounts(line)
+                    if amounts:
+                        # First amount is the phaseout start threshold
+                        result[status_key] = amounts[0]
+                        logger.debug(f"Extracted AMT phaseout {status_key}: ${amounts[0]:,}")
+                        break
 
         return result
 
