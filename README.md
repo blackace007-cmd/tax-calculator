@@ -31,17 +31,32 @@ A comprehensive Python package for calculating Federal and California state taxe
 
 ## Installation
 
-### From the project directory:
+### Using Conda (Recommended)
+
+This project uses conda for environment management. If you haven't set up conda yet, see `/home/azhar/CONDA_GUIDE.md`.
 
 ```bash
+# Activate the datascience environment
+conda activate datascience
+
+# Install the package
 cd /home/azhar/tax-calculator
 pip install -e .
 ```
 
-### For development (includes Jupyter):
+### Using environment.yml
+
+To create a dedicated environment for this project:
 
 ```bash
-pip install -e ".[dev]"
+# Create environment from file
+conda env create -f environment.yml
+
+# Activate it
+conda activate tax-calculator
+
+# Install the package
+pip install -e .
 ```
 
 ## Quick Start
@@ -97,9 +112,15 @@ See the comprehensive example notebook at `examples/tax_analysis_example.ipynb` 
 To launch the example notebook:
 
 ```bash
+# Activate datascience environment
+conda activate datascience
+
+# Launch Jupyter
 cd /home/azhar/tax-calculator
 jupyter lab examples/tax_analysis_example.ipynb
 ```
+
+**Jupyter Kernel**: Select "Data Science (conda)" kernel in the notebook.
 
 ## Package Structure
 
